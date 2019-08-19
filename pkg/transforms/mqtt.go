@@ -3,6 +3,7 @@ package transforms
 import (
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -28,6 +29,13 @@ const (
 	mqttPort           = 8883
 	vaultToken         = "X-Vault-Token"
 )
+
+type AzureMQTTConfig struct {
+	MQTTConfig  *sdkTransforms.MqttConfig
+	IoTHub      string
+	IoTDevice   string
+	KeyCertPair *sdkTransforms.KeyCertPair
+}
 
 // global logger
 var log logger.LoggingClient
@@ -74,8 +82,16 @@ func retrieveKeyPair(tokenPath string, vaultHost string, vaultPort string, certP
 				if err == nil {
 					defer res.Body.Close()
 
+					if res.StatusCode != 200 {
+						return nil, fmt.Errorf("Unsuccessful HTTP request, status code is %d", res.StatusCode)
+					}
+
 					cc := certCollect{}
 					json.NewDecoder(res.Body).Decode(&cc)
+
+					if len(cc.Pair.Key) == 0 || len(cc.Pair.Cert) == 0 {
+						return nil, errors.New("Failed to load key/cert pair from Vault")
+					}
 
 					pair := &sdkTransforms.KeyCertPair{
 						KeyPEMBlock:  []byte(cc.Pair.Key),
@@ -111,13 +127,16 @@ func getNewClient(skipVerify bool) *http.Client {
 	return &http.Client{Timeout: 10 * time.Second, Transport: tr}
 }
 
-func NewMQTTSender(sdk *appsdk.AppFunctionsSDK) *sdkTransforms.MQTTSender {
+func LoadAzureMQTTConfig(sdk *appsdk.AppFunctionsSDK) (*AzureMQTTConfig, error) {
+	if sdk == nil {
+		return nil, errors.New("Invalid AppFunctionsSDK")
+	}
+
 	log = sdk.LoggingClient
 
 	var iotHub, iotDevice, mqttCert, mqttKey, tokenPath, vaultHost, vaultPort, certPath string
 
 	appSettings := sdk.ApplicationSettings()
-
 	if appSettings != nil {
 		iotHub = getAppSetting(appSettings, appConfigIoTHub)
 		iotDevice = getAppSetting(appSettings, appConfigIoTDevice)
@@ -128,38 +147,50 @@ func NewMQTTSender(sdk *appsdk.AppFunctionsSDK) *sdkTransforms.MQTTSender {
 		vaultPort = getAppSetting(appSettings, appConfigVaultPort)
 		certPath = getAppSetting(appSettings, appConfigCertPath)
 	} else {
-		log.Error("No application-specific settings found")
-		return nil
+		return nil, errors.New("No application-specific settings found")
 	}
 
-	// Generate Azure-specific host, user amd topic
-	host := fmt.Sprintf("%s.azure-devices.net", iotHub)
-	user := fmt.Sprintf("%s/%s/?api-version=2018-06-30", host, iotDevice)
-	topic := fmt.Sprintf("devices/%s/messages/events/", iotDevice)
+	config := AzureMQTTConfig{}
 
-	addressable := models.Addressable{
-		Address:   host,
-		Port:      mqttPort,
-		Protocol:  "tls",
-		Publisher: iotDevice, // must be the same as the device name
-		User:      user,
-		Password:  "",
-		Topic:     topic,
-	}
+	config.IoTHub = iotHub
+	config.IoTDevice = iotDevice
+	config.MQTTConfig = sdkTransforms.NewMqttConfig()
 
 	// Retrieve key/cert pair from Vault
 	pair, err := retrieveKeyPair(tokenPath, vaultHost, vaultPort, certPath)
 
 	// Fall back to local key/cert files
 	if err != nil {
+		log.Error(fmt.Sprintf("Failed to load key/cert from Vault (%v), use local key/cert files instead", err))
+
 		pair = &sdkTransforms.KeyCertPair{
 			KeyFile:  mqttKey,
 			CertFile: mqttCert,
 		}
 	}
 
-	mqttConfig := sdkTransforms.NewMqttConfig()
-	mqttSender := sdkTransforms.NewMQTTSender(log, addressable, pair, mqttConfig)
+	config.KeyCertPair = pair
+
+	return &config, nil
+}
+
+func NewAzureMQTTSender(logging logger.LoggingClient, config *AzureMQTTConfig) *sdkTransforms.MQTTSender {
+	// Generate Azure-specific host, user amd topic
+	host := fmt.Sprintf("%s.azure-devices.net", config.IoTHub)
+	user := fmt.Sprintf("%s/%s/?api-version=2018-06-30", host, config.IoTDevice)
+	topic := fmt.Sprintf("devices/%s/messages/events/", config.IoTDevice)
+
+	addressable := models.Addressable{
+		Address:   host,
+		Port:      mqttPort,
+		Protocol:  "tls",
+		Publisher: config.IoTDevice, // must be the same as the device name
+		User:      user,
+		Password:  "",
+		Topic:     topic,
+	}
+
+	mqttSender := sdkTransforms.NewMQTTSender(logging, addressable, config.KeyCertPair, config.MQTTConfig)
 
 	return mqttSender
 }

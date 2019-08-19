@@ -29,15 +29,24 @@ func main() {
 
 	// 3) This is our pipeline configuration, the collection of functions to
 	// execute every time an event is triggered.
+
+	// Load Azure-specific MQTT configuration from App SDK
+	// Youi can also create AzureMQTTConfig struct yourself
+	config, err := azureTransforms.LoadAzureMQTTConfig(edgexSdk)
+	if err != nil {
+		edgexSdk.LoggingClient.Error(fmt.Sprintf("Failed to load Azure MQTT configurations: %v\n", err))
+		os.Exit(-1)
+	}
+
 	edgexSdk.SetFunctionsPipeline(
 		transforms.NewFilter(deviceName).FilterByDeviceName,
 		azureTransforms.NewConversion().TransformToAzure,
-		azureTransforms.NewMQTTSender(edgexSdk).MQTTSend,
+		azureTransforms.NewAzureMQTTSender(edgexSdk.LoggingClient, config).MQTTSend,
 	)
 
 	// 5) Lastly, we'll go ahead and tell the SDK to "start" and begin listening for events
 	// to trigger the pipeline.
-	err := edgexSdk.MakeItRun()
+	err = edgexSdk.MakeItRun()
 	if err != nil {
 		edgexSdk.LoggingClient.Error("MakeItRun returned error: ", err.Error())
 		os.Exit(-1)
