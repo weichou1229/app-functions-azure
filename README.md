@@ -28,4 +28,6 @@ MQTTKey        = "/secret/rsa_private.pem"
 - `TokenPath`, `VaultHost`, `VaultPort` and `CertPath` - Info for retrieving key/cert from Vault secret store
 - `MQTTCert` and `MQTTKey` - Key/Certificate pait from loca file system. The pair will be used when the function fails to load a pair from Vault.
 
+You can use LoadAzureMQTTConfig() to load the configurations to struct AzureMQTTConfig or create one yourself if the standard app-function sdk configuration file does not suit your needs.
+
 See the code under `examples/azure-export` for a complete working example exporting reading to Azure IoT Hub.
