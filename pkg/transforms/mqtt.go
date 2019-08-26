@@ -64,59 +64,55 @@ func getAppSetting(settings map[string]string, name string) string {
 	}
 }
 
-func retrieveKeyPair(tokenPath string, vaultHost string, vaultPort string, certPath string) (*sdkTransforms.KeyCertPair, error) {
+func retrieveKeyCertPair(tokenPath string, vaultHost string, vaultPort string, certPath string) (*sdkTransforms.KeyCertPair, error) {
 	a := auth{}
 	content, err := ioutil.ReadFile(tokenPath)
 
-	if err == nil {
-		err = json.Unmarshal(content, &a)
-		if err == nil {
-			// we hae a.Token here
-			s := sling.New().Set(vaultToken, a.Token)
-			vaultUrl := fmt.Sprintf("https://%s:%s/", vaultHost, vaultPort)
-			req, err := s.New().Base(vaultUrl).Get(certPath).Request()
-
-			if err == nil {
-				res, err := getNewClient(true).Do(req)
-
-				if err == nil {
-					defer res.Body.Close()
-
-					if res.StatusCode != 200 {
-						return nil, fmt.Errorf("Unsuccessful HTTP request, status code is %d", res.StatusCode)
-					}
-
-					cc := certCollect{}
-					json.NewDecoder(res.Body).Decode(&cc)
-
-					if len(cc.Pair.Key) == 0 || len(cc.Pair.Cert) == 0 {
-						return nil, errors.New("Failed to load key/cert pair from Vault")
-					}
-
-					pair := &sdkTransforms.KeyCertPair{
-						KeyPEMBlock:  []byte(cc.Pair.Key),
-						CertPEMBlock: []byte(cc.Pair.Cert),
-					}
-
-					log.Info("Successfully loaded key/cert pair from Vault")
-
-					return pair, nil
-				} else {
-					log.Error("Client request failed", err.Error())
-					return nil, err
-				}
-			} else {
-				log.Error("Failed to create request", err.Error())
-				return nil, err
-			}
-		}
-	} else {
+	if err != nil {
 		log.Error("Failed to read token file", err.Error())
 		return nil, err
 	}
 
-	// won't reach here
-	return nil, nil
+	err = json.Unmarshal(content, &a)
+
+	// we have a.Token here
+	s := sling.New().Set(vaultToken, a.Token)
+	vaultUrl := fmt.Sprintf("https://%s:%s/", vaultHost, vaultPort)
+	req, err := s.New().Base(vaultUrl).Get(certPath).Request()
+
+	if err != nil {
+		log.Error("Failed to create request", err.Error())
+		return nil, err
+	}
+
+	res, err := getNewClient(true).Do(req)
+
+	if err != nil {
+		log.Error("Client request failed", err.Error())
+		return nil, err
+	}
+
+	defer res.Body.Close()
+
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("Unsuccessful HTTP request to Vault, status code is %d", res.StatusCode)
+	}
+
+	cc := certCollect{}
+	err = json.NewDecoder(res.Body).Decode(&cc)
+
+	if err != nil || len(cc.Pair.Key) == 0 || len(cc.Pair.Cert) == 0 {
+		return nil, errors.New("Failed to load key/cert pair from Vault")
+	}
+
+	pair := &sdkTransforms.KeyCertPair{
+		KeyPEMBlock:  []byte(cc.Pair.Key),
+		CertPEMBlock: []byte(cc.Pair.Cert),
+	}
+
+	log.Info("Successfully loaded key/cert pair from Vault")
+
+	return pair, nil
 }
 
 func getNewClient(skipVerify bool) *http.Client {
@@ -134,20 +130,23 @@ func LoadAzureMQTTConfig(sdk *appsdk.AppFunctionsSDK) (*AzureMQTTConfig, error) 
 
 	log = sdk.LoggingClient
 
-	var iotHub, iotDevice, mqttCert, mqttKey, tokenPath, vaultHost, vaultPort, certPath string
-
 	appSettings := sdk.ApplicationSettings()
-	if appSettings != nil {
-		iotHub = getAppSetting(appSettings, appConfigIoTHub)
-		iotDevice = getAppSetting(appSettings, appConfigIoTDevice)
-		mqttCert = getAppSetting(appSettings, appConfigMQTTCert)
-		mqttKey = getAppSetting(appSettings, appConfigMQTTKey)
-		tokenPath = getAppSetting(appSettings, appConfigTokenPath)
-		vaultHost = getAppSetting(appSettings, appConfigVaultHost)
-		vaultPort = getAppSetting(appSettings, appConfigVaultPort)
-		certPath = getAppSetting(appSettings, appConfigCertPath)
-	} else {
+
+	if appSettings == nil {
 		return nil, errors.New("No application-specific settings found")
+	}
+
+	iotHub := getAppSetting(appSettings, appConfigIoTHub)
+	iotDevice := getAppSetting(appSettings, appConfigIoTDevice)
+	mqttCert := getAppSetting(appSettings, appConfigMQTTCert)
+	mqttKey := getAppSetting(appSettings, appConfigMQTTKey)
+	tokenPath := getAppSetting(appSettings, appConfigTokenPath)
+	vaultHost := getAppSetting(appSettings, appConfigVaultHost)
+	vaultPort := getAppSetting(appSettings, appConfigVaultPort)
+	certPath := getAppSetting(appSettings, appConfigCertPath)
+
+	if len(iotHub) == 0 || len(iotDevice) == 0 {
+		return nil, errors.New("Required configurations " + appConfigIoTHub + " or " + appConfigIoTDevice + " are missing")
 	}
 
 	config := AzureMQTTConfig{}
@@ -157,7 +156,7 @@ func LoadAzureMQTTConfig(sdk *appsdk.AppFunctionsSDK) (*AzureMQTTConfig, error) 
 	config.MQTTConfig = sdkTransforms.NewMqttConfig()
 
 	// Retrieve key/cert pair from Vault
-	pair, err := retrieveKeyPair(tokenPath, vaultHost, vaultPort, certPath)
+	pair, err := retrieveKeyCertPair(tokenPath, vaultHost, vaultPort, certPath)
 
 	// Fall back to local key/cert files
 	if err != nil {

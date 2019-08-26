@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	azureTransforms "github.com/IOTechSystems/app-functions-azure/pkg/transforms"
 	"github.com/edgexfoundry/app-functions-sdk-go/appsdk"
@@ -10,7 +12,8 @@ import (
 )
 
 const (
-	serviceKey = "AzureExport"
+	serviceKey           = "AzureExport"
+	appConfigDeviceNames = "DeviceNames"
 )
 
 var counter int
@@ -25,21 +28,27 @@ func main() {
 
 	// 2) Since our DeviceNameFilter Function requires the list of device names we would
 	// like to search for, we'll go ahead and define that now.
-	deviceName := []string{"Random-Integer-Generator01"}
+	deviceNames, err := loadDeviceNames(edgexSdk)
+
+	if err != nil {
+		edgexSdk.LoggingClient.Error(fmt.Sprintf("Failed to load device names: %v\n", err))
+		os.Exit(-1)
+	}
 
 	// 3) This is our pipeline configuration, the collection of functions to
 	// execute every time an event is triggered.
 
 	// Load Azure-specific MQTT configuration from App SDK
-	// Youi can also create AzureMQTTConfig struct yourself
+	// You can also create AzureMQTTConfig struct yourself
 	config, err := azureTransforms.LoadAzureMQTTConfig(edgexSdk)
+
 	if err != nil {
 		edgexSdk.LoggingClient.Error(fmt.Sprintf("Failed to load Azure MQTT configurations: %v\n", err))
 		os.Exit(-1)
 	}
 
 	edgexSdk.SetFunctionsPipeline(
-		transforms.NewFilter(deviceName).FilterByDeviceName,
+		transforms.NewFilter(deviceNames).FilterByDeviceName,
 		azureTransforms.NewConversion().TransformToAzure,
 		azureTransforms.NewAzureMQTTSender(edgexSdk.LoggingClient, config).MQTTSend,
 	)
@@ -55,4 +64,22 @@ func main() {
 	// Do any required cleanup here
 
 	os.Exit(0)
+}
+
+func loadDeviceNames(edgexSdk *appsdk.AppFunctionsSDK) ([]string, error) {
+	if value, ok := edgexSdk.ApplicationSettings()[appConfigDeviceNames]; ok {
+		deviceNames := strings.Split(value, ",")
+
+		if len(deviceNames) < 1 {
+			return nil, errors.New("No device is configured")
+		}
+
+		for index, name := range deviceNames {
+			deviceNames[index] = strings.TrimSpace(name)
+		}
+
+		return deviceNames, nil
+	} else {
+		return nil, errors.New(fmt.Sprintf("Couldn't find '%s' in configuration file: %v\n", appConfigDeviceNames, ok))
+	}
 }

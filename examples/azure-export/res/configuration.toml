@@ -23,6 +23,15 @@ Type = 'consul'
   Host = 'localhost'
   Port = 48080
 
+[Logging]
+EnableRemote = false
+File = './logs/azure-export.log'
+
+[Binding]
+Type="messagebus"
+SubscribeTopic="events"
+PublishTopic=""
+
 [MessageBus]
 Type = 'zero'
     [MessageBus.PublishHost]
@@ -33,15 +42,6 @@ Type = 'zero'
         Host = 'localhost'
         Port = 5563
         Protocol = 'tcp'
-
-[Logging]
-EnableRemote = false
-File = './logs/azure-export.log'
-
-[Binding]
-Type="messagebus"
-SubscribeTopic="events"
-PublishTopic=""
 
 [ApplicationSettings]
 IoTHub         = "EdgeX"
