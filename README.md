@@ -11,7 +11,7 @@ This transform function can be used in the middle stage of the the function pipe
 ```
 
 ## The Azure MQTT Export Function
-This function can export transformed readings to Azure IoT vi MQTT using some simple configurations. It also supports loading the required key/certificate pair from Vault (the distributed secret store used in the EdgeX architecture) in addition to key/certificate files from local file system. Just include a section of related configurations under ApplicationSettings in the app-functions standard toml configuration file as following:
+This function can export transformed readings to Azure IoT via MQTT using some simple configurations. It also supports loading the required key/certificate pair from Vault (the distributed secret store used in the EdgeX architecture) in addition to key/certificate files from local file system. Just include a section of related configurations under ApplicationSettings in the app-functions standard toml configuration file as following:
 ```
 IoTHub         = "EdgeX"
 IoTDevice      = "MyDevice"
