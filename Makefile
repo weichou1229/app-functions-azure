@@ -15,13 +15,8 @@ build: $(MICROSERVICES)
 examples/azure-export/azure-export:
 	$(GO) build -o $@ ./examples/azure-export
 
-docker:
-	docker build \
-		-f examples/simple-filter-xml/Dockerfile \
-		--label "git_sha=$(GIT_SHA)" \
-		-t edgexfoundry/docker-app-functions-sdk-go-simple:$(GIT_SHA) \
-		-t edgexfoundry/docker-app-functions-sdk-go-simple:$(VERSION)-dev \
-		.
+examples/azure-export/http-command:
+	$(GO) build -o $@ ./examples/http-command-service
 
 test:
 	$(GO) test ./... -coverprofile=coverage.out ./...
