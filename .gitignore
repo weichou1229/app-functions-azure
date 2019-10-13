@@ -1,6 +1,8 @@
 go.sum
 examples/azure-export/azure-export
 examples/azure-export/logs
+examples/http-command-service/http-command
+examples/http-command-service/logs
 coverage.out
 *.log
 *.txt

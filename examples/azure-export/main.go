@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	azureTransforms "github.com/IOTechSystems/app-functions-azure/pkg/transforms"
+	azureTransforms "github.com/edgexfoundry-holding/app-functions-azure/pkg/transforms"
 	"github.com/edgexfoundry/app-functions-sdk-go/appsdk"
 	"github.com/edgexfoundry/app-functions-sdk-go/pkg/transforms"
 )

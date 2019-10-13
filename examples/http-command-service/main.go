@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/IOTechSystems/app-functions-azure/examples/http-command-service/functions"
+	"github.com/edgexfoundry-holding/app-functions-azure/examples/http-command-service/functions"
 	"github.com/edgexfoundry/app-functions-sdk-go/appsdk"
 	"github.com/edgexfoundry/app-functions-sdk-go/pkg/transforms"
 )

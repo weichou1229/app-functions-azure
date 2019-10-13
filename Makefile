@@ -2,7 +2,7 @@
 
 GO=CGO_ENABLED=1 GO111MODULE=on go
 
-MICROSERVICES=examples/azure-export/azure-export
+MICROSERVICES=examples/azure-export/azure-export examples/http-command-service/http-command
 .PHONY: $(MICROSERVICES)
 
 VERSION=$(shell cat ./VERSION)
@@ -15,7 +15,7 @@ build: $(MICROSERVICES)
 examples/azure-export/azure-export:
 	$(GO) build -o $@ ./examples/azure-export
 
-examples/azure-export/http-command:
+examples/http-command-service/http-command:
 	$(GO) build -o $@ ./examples/http-command-service
 
 test:

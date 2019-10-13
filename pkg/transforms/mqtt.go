@@ -189,7 +189,7 @@ func NewAzureMQTTSender(logging logger.LoggingClient, config *AzureMQTTConfig) *
 		Topic:     topic,
 	}
 
-	mqttSender := sdkTransforms.NewMQTTSender(logging, addressable, config.KeyCertPair, config.MQTTConfig)
+	mqttSender := sdkTransforms.NewMQTTSender(logging, addressable, config.KeyCertPair, config.MQTTConfig, false)
 
 	return mqttSender
 }
