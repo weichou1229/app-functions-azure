@@ -1,39 +1,12 @@
-# Advanced Target Type  
+# HTTP Command Service
 
-This **advanced-target-type** Application Service demonstrates how to create an Application Service that expects a custom type to feed to the functions pipeline. For more detail refer to the SDK's main README's section on [TargetType](https://github.com/edgexfoundry/app-functions-sdk-go/blob/master/README.md#target-type)
+We sometimes want to trigger device actions from the cloud. EdgeX provide a comprehensive set of APIs for you to do that : https://github.com/edgexfoundry/edgex-go/blob/master/api/raml/core-command.raml. But often times you don't want to expose the entire API and you want finer-grained control how the APIs should be exposed. For example, you want to control which command on which device is allowed to receive commands from the outside of EdgeX or want to only allow certain values for a command. 
 
-To run this example:
+HTTP Command Service is an example of doing just that. It use the simple device service from device SDK as an example. Instead of expose the entire device APIs of the device, We want to allow a simple json document to set status of the switch in the device as:
 
-1.  Clone **[app-functions-sdk-go](https://github.com/edgexfoundry/app-functions-sdk-go)** repo
+{
+    "status" : "off"
+}
 
-2. run `make build`
-
-3. cd `examples/advance-target-type`
-
-4. run `./advance-target-type`
-
-5. Start PostMan
-
-6. Load `Post Person to Trgger.postman_collection.json` collection in PostMan
-
-7. Run the `Person Trigger` request
-
-   - The following XML will be printed to the console by the Application Service and will be returned as the trigger HTTP response in PostMan.
-
-     ```
-     <Person>
-        <FirstName>Sam</FirstName>
-        <LastName>Smith</LastName>
-        <Phone>
-           <CountryCode>1</CountryCode>
-           <AreaCode>480</AreaCode>
-           <LocalPrefix>970</LocalPrefix>
-           <LocalNumber>3476</LocalNumber>
-        </Phone>
-        <PhoneDisplay>+01(480) 970-3476</PhoneDisplay>
-     </Person>
-     ```
-
-   - Note that the PhoneDisplay field that is not present in the XML sent from PostMan is now present and filled out.
-
+The HTTP Command Service exposes a HTTP service for the client to switch on / off of the device without knowing the underlying EdgeX APIs.
 
