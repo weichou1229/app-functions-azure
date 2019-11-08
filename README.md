@@ -1,6 +1,6 @@
 # App Functions SDK Azure Extension
 ## Overview
-This is an extension to the App Functions SDK providing easiler integration with Azure IoT hub. It provides one transform and one export fucntion specific to the Azure IoT.
+This is an extension to the App Functions SDK providing integration with Azure IoT hub in an easy way.  It provides one transform and one export fucntion specific to the Azure IoT.
 
 ## The Azure Transform Function
 This transform function can be used in the middle stage of the the function pipeline as other transforms. It will transform EdgeX events to name-value format to be consumed by Azure IoT Hub as the one below:
