@@ -16,8 +16,6 @@ import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 
-import java.lang.reflect.Type;
-import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import com.google.api.client.http.GenericUrl;
@@ -32,12 +30,21 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.JsonObjectParser;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.gson.reflect.TypeToken;
+import com.microsoft.azure.sdk.iot.provisioning.security.SecurityProvider;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpPut;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.util.EntityUtils;
 
 public class ProxyDevice {
   // The device connection string to authenticate the device with your IoT hub.
   // Using the Azure CLI:
   // az iot hub device-identity show-connection-string --hub-name {YourIoTHubName} --device-id {YourDeviceId} --output table
-  private static String connString = "{Your device connection string here}";
+  private static String connString = "HostName=EssaiIOT.azure-devices.net;DeviceId=Coriance_Pub_Device;SharedAccessKey=7+4Hos7kq6uVDa/R/ZvC84JXMLdJKaTPoLHbUV6e2c8=";
   
   // Using the MQTT protocol to connect to IoT Hub
   private static IotHubClientProtocol protocol = IotHubClientProtocol.MQTT;
@@ -124,7 +131,10 @@ public class ProxyDevice {
     public DeviceMethodData call(String methodName, Object methodData, Object context)
     {
       DeviceMethodData deviceMethodData;
-      String payload = new String((byte[])methodData);
+
+      String payload = new String((byte[])methodData).replaceAll("\\\\","");
+      payload = payload.substring(1, payload.length()-1);
+      System.out.println("payload: "+payload);
       switch (methodName)
       {
         case "SetTelemetryInterval" :
@@ -162,14 +172,39 @@ public class ProxyDevice {
         }
         default:
         {
-          int status = METHOD_NOT_DEFINED;
-          deviceMethodData = new DeviceMethodData(status, "Non-defined direct method " + methodName);
+          String res = this.executePutCommand(methodName,payload);
+          int status = METHOD_SUCCESS;
+          deviceMethodData = new DeviceMethodData(status, res);
         }
       }
 
-      System.out.println("Executed direct method " + methodName);
+      System.out.println("Executed direct method " + methodName + ", payload "+new String((byte[])methodData));
 
       return deviceMethodData;
+    }
+
+    public static String executePutCommand(String cmd ,String postRequest){
+      HttpClient httpclient = new DefaultHttpClient();
+      System.out.println("payload: "+postRequest);
+      try {
+        String url = "http://localhost:48082/api/v1/device/name/Coriance_Device/command/"+cmd;
+        HttpPut request = new HttpPut(url);
+        request.setHeader("Content-Type", "application/json");
+
+        // Request body
+        StringEntity reqEntity = new StringEntity(postRequest,"UTF-8");
+        request.setEntity(reqEntity);
+        System.out.println(request.toString());
+        HttpResponse response = httpclient.execute(request);
+        HttpEntity entity = response.getEntity();
+
+        String temp = EntityUtils.toString(entity);
+        System.out.println(temp);
+        return temp;
+      } catch (Exception e) {
+        System.out.println(e.getMessage());
+      }
+      return "";
     }
   }
 

@@ -11,23 +11,24 @@ import com.microsoft.azure.sdk.iot.service.devicetwin.MethodResult;
 import com.microsoft.azure.sdk.iot.service.exceptions.IotHubException;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.concurrent.TimeUnit;
 
 public class BackEndApplication {
 
   // Connection string for your IoT Hub
   // az iot hub show-connection-string --hub-name {your iot hub name} --policy-name service
-  public static final String iotHubConnectionString = "{Your service connection string here}";
-  
+  public static final String iotHubConnectionString = "HostName=EssaiIOT.azure-devices.net;SharedAccessKeyName=service;SharedAccessKey=pto2o31P7kuJwEEPNdcUffm4ZxUpfEF9iNPSx5wYXCI=";
+
   // Device to call direct method on.
-  public static final String deviceId = "{Your device Id here}";
+  public static final String deviceId = "Coriance_Pub_Device";
 
   private static final String TURN_ON  = "turn-on";
   private static final String TURN_OFF = "turn-off";
 
   // Name of direct method and payload.
   private static String methodName = "SetTelemetryInterval";
-  public static final int payload = 10; // Number of seconds for telemetry interval.
+  public static final String payload = "10"; // Number of seconds for telemetry interval.
 
   public static final Long responseTimeout = TimeUnit.SECONDS.toSeconds(30);
   public static final Long connectTimeout = TimeUnit.SECONDS.toSeconds(5);
@@ -39,15 +40,18 @@ public class BackEndApplication {
 
       MethodResult result = null;
 
-      if (args.length == 1) {
-          switch (args[0]) {
-            case TURN_ON:
-                methodName = TURN_ON;
-                break;
-            case TURN_OFF:
-                methodName = TURN_OFF;
-                break;
-          }
+//      String deviceId = "";
+      String payload = "10";
+
+      if (args.length >= 2) {
+//        deviceId = args[0];
+        methodName = args[0];
+        payload = args[1];
+        System.out.println("payload: " + args[1]);
+      }else{
+        System.out.println("Not enough arguments(methodName, payload)");
+        System.out.println("Ex: java -jar invoke-direct-method.jar Configuration '{ \"DemandWindowSize\" : \"25\", \"LineFrequency\" : \"70\" }'\n");
+        return;
       }
 
       // Call the direct method.
