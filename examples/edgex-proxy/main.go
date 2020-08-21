@@ -3,15 +3,14 @@ package main
 import (
 	"bytes"
 	"crypto/tls"
+	"encoding/json"
 	"flag"
 	"fmt"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"net/http"
 	"os"
 	"os/signal"
-	"regexp"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -24,15 +23,15 @@ func onMessageReceived(client MQTT.Client, message MQTT.Message) {
 	rid := topic[len(topic)-1 : len(topic)]
 	fmt.Println("rid: " + rid)
 
-	m, err := regexp.Compile("POST/(.*?)/")
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-	methodName := m.FindString(topic)
-	methodName = strings.Replace(methodName, "POST", "", 1)
-	methodName = strings.Replace(methodName, "/", "", -1)
-	fmt.Println("methodName: " + methodName)
-	status := executePutCommand(methodName, message.Payload())
+	//m, err := regexp.Compile("POST/(.*?)/")
+	//if err != nil {
+	//	fmt.Println(err.Error())
+	//}
+	//methodName := m.FindString(topic)
+	//methodName = strings.Replace(methodName, "POST", "", 1)
+	//methodName = strings.Replace(methodName, "/", "", -1)
+	//fmt.Println("methodName: " + methodName)
+	status := executePutCommand("Values", message.Payload())
 
 	//pubClient,err := newMQTTClient(func(client MQTT.Client){})
 	//if err!= nil{
@@ -44,7 +43,7 @@ func onMessageReceived(client MQTT.Client, message MQTT.Message) {
 	pubTopic := "$iothub/methods/res/200/?$rid=" + rid
 	token := client.Publish(pubTopic, byte(*qos), false, fmt.Sprintf("{\"status\":\"%s\"}", status))
 	if token.WaitTimeout(time.Second*time.Duration(10)) && token.Error() != nil {
-		fmt.Println("Error publish: " + err.Error())
+		fmt.Println("Error publish: " + token.Error().Error())
 	} else {
 		fmt.Println("Published: " + pubTopic)
 	}
@@ -59,7 +58,8 @@ func main() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
 	server = flag.String("server", "tls://EssaiIOT.azure-devices.net:8883", "The full url of the MQTT server to connect to ex: tcp://127.0.0.1:1883")
-	topic = flag.String("topic", "$iothub/methods/POST/#", "Topic to subscribe to")
+	//topic = flag.String("topic", "$iothub/methods/POST/#", "Topic to subscribe to")
+	topic = flag.String("topic", "#", "Topic to subscribe to")
 	qos = flag.Int("qos", 0, "The QoS to subscribe to messages at")
 	clientid = flag.String("clientid", "Coriance_Device", "A clientid for the connection")
 	username = flag.String("username", "EssaiIOT.azure-devices.net/Coriance_Device/api-version=2019-03-30", "A username to authenticate to the MQTT server")
@@ -124,7 +124,10 @@ func newMQTTClient(callback func(client MQTT.Client)) (MQTT.Client, error) {
 
 func executePutCommand(cmd string, body []byte) string {
 	// set the HTTP method, url, and request body
-	url := "http://localhost:48082/api/v1/device/name/Coriance_Device/command/" + cmd
+	newcmd := parseJSONNAME(body)
+	fmt.Println("new:" + newcmd)
+	cmd = "Values"
+	url := "http://192.168.56.102:48082/api/v1/device/name/Coriance_Device/command/" + newcmd
 	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(body))
 	if err != nil {
 		panic(err)
@@ -141,3 +144,21 @@ func executePutCommand(cmd string, body []byte) string {
 	fmt.Println(resp.StatusCode)
 	return strconv.Itoa(resp.StatusCode)
 }
+
+func parseJSONNAME(body []byte) string {
+	var result map[string]interface{}
+	var key string
+	json.Unmarshal(body, &result)
+	for k, v := range result {
+		key = k
+		fmt.Println("Key:", k, "=>", "Element:", v)
+		break
+	}
+	return key
+}
+
+//{
+//"device": "%DEVICENAME%",
+//"name": "%PUBLISHNAME%",
+//"value": "%VALUE%"
+//}
